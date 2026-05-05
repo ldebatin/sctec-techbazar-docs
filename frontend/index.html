@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TechBazar — Eletrônicos Usados</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { primary: '#00c896' },
+          fontFamily: {
+            syne: ['Syne', 'sans-serif'],
+            dm: ['DM Sans', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { background-color: #0f1117; font-family: 'DM Sans', sans-serif; }
+
+    .card-hover { transition: transform 0.2s, box-shadow 0.2s; }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 0 0 1px #00c896, 0 8px 24px rgba(0,200,150,0.15); }
+
+    .pill-active { background-color: #00c896; color: #0f1117; }
+
+    .cart-badge { animation: pop 0.25s ease; }
+    @keyframes pop { 0%,100% { transform: scale(1); } 50% { transform: scale(1.5); } }
+
+    /* Drawer */
+    #cart-drawer {
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #cart-drawer.open { transform: translateX(0); }
+
+    /* Overlay */
+    #cart-overlay {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #cart-overlay.open { opacity: 1; pointer-events: auto; }
+
+    /* Scrollbar fina no drawer */
+    #cart-items-list::-webkit-scrollbar { width: 4px; }
+    #cart-items-list::-webkit-scrollbar-track { background: transparent; }
+    #cart-items-list::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+
+    /* Modal auth */
+    #auth-modal {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    #auth-modal.open { opacity: 1; pointer-events: auto; }
+    #auth-box {
+      transform: translateY(16px) scale(0.98);
+      transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    #auth-modal.open #auth-box { transform: translateY(0) scale(1); }
+  </style>
+</head>
+<body class="text-gray-100 min-h-screen">
+
+  <!-- Modal de autenticação -->
+  <div id="auth-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center px-4">
+    <div id="auth-box" class="bg-[#161a23] border border-gray-800 rounded-2xl w-full max-w-sm p-8 shadow-2xl">
+
+      <!-- Logo -->
+      <p class="font-syne font-extrabold text-xl text-center mb-1">Tech<span class="text-primary">Bazar</span></p>
+
+      <!-- Abas Login / Criar conta -->
+      <div class="flex rounded-xl bg-gray-800 p-1 mb-6 mt-4">
+        <button id="tab-login"    onclick="trocarAba('login')"    class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors">Entrar</button>
+        <button id="tab-register" onclick="trocarAba('register')" class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors">Criar conta</button>
+      </div>
+
+      <!-- Formulário login -->
+      <form id="form-login" onsubmit="submitLogin(event)" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs text-gray-400">E-mail</label>
+          <input id="login-email" type="email" required placeholder="seu@email.com"
+            class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs text-gray-400">Senha</label>
+          <input id="login-senha" type="password" required placeholder="••••••••"
+            class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors" />
+        </div>
+        <p id="login-erro" class="hidden text-xs text-red-400"></p>
+        <button type="submit" class="w-full bg-primary text-[#0f1117] font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity text-sm mt-1">
+          Entrar
+        </button>
+      </form>
+
+      <!-- Formulário criar conta -->
+      <form id="form-register" onsubmit="submitRegister(event)" class="hidden flex-col gap-4">
+        <div class="flex flex-col gap-1">
+          <label class="text-xs text-gray-400">Nome</label>
+          <input id="reg-nome" type="text" required placeholder="Seu nome"
+            class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs text-gray-400">E-mail</label>
+          <input id="reg-email" type="email" required placeholder="seu@email.com"
+            class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-xs text-gray-400">Senha</label>
+          <input id="reg-senha" type="password" required placeholder="mín. 6 caracteres" minlength="6"
+            class="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors" />
+        </div>
+        <p id="reg-erro" class="hidden text-xs text-red-400"></p>
+        <button type="submit" class="w-full bg-primary text-[#0f1117] font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity text-sm mt-1">
+          Criar conta
+        </button>
+      </form>
+
+      <button onclick="fecharAuth()" class="w-full mt-4 text-gray-600 hover:text-gray-400 text-xs transition-colors">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Overlay do drawer -->
+  <div id="cart-overlay" class="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" onclick="fecharCarrinho()"></div>
+
+  <!-- Drawer do carrinho -->
+  <aside id="cart-drawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-[#161a23] border-l border-gray-800 z-50 flex flex-col shadow-2xl">
+
+    <!-- Header do drawer -->
+    <div class="flex items-center justify-between px-6 py-5 border-b border-gray-800">
+      <div class="flex items-center gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 3h2l.4 2M7 13h10l4-16H5.4M7 13l-1.35 5.39A1 1 0 007 20h10a1 1 0 00.97-1.24L17 13M7 13H5.4M9 21a1 1 0 100-2 1 1 0 000 2zm10 0a1 1 0 100-2 1 1 0 000 2z" />
+        </svg>
+        <h2 class="font-syne font-bold text-lg">Meu Carrinho</h2>
+        <span id="drawer-count" class="bg-primary text-[#0f1117] text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+      </div>
+      <button onclick="fecharCarrinho()" class="text-gray-500 hover:text-white transition-colors p-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Estado vazio -->
+    <div id="cart-empty" class="flex-1 flex flex-col items-center justify-center gap-4 text-gray-600">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+          d="M3 3h2l.4 2M7 13h10l4-16H5.4M7 13l-1.35 5.39A1 1 0 007 20h10a1 1 0 00.97-1.24L17 13M7 13H5.4M9 21a1 1 0 100-2 1 1 0 000 2zm10 0a1 1 0 100-2 1 1 0 000 2z" />
+      </svg>
+      <p class="text-sm">Seu carrinho está vazio.</p>
+      <button onclick="fecharCarrinho()" class="text-primary text-sm hover:underline">Continuar comprando</button>
+    </div>
+
+    <!-- Lista de itens -->
+    <div id="cart-items-list" class="hidden flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4"></div>
+
+    <!-- Footer com total + checkout -->
+    <div id="cart-footer" class="hidden border-t border-gray-800 px-6 py-5 flex flex-col gap-4">
+      <div class="flex flex-col gap-1 text-sm text-gray-400">
+        <div class="flex justify-between">
+          <span>Subtotal</span>
+          <span id="subtotal-val" class="text-gray-200">R$ 0</span>
+        </div>
+        <div class="flex justify-between">
+          <span>Frete</span>
+          <span class="text-primary font-semibold">Grátis</span>
+        </div>
+      </div>
+      <div class="flex justify-between items-center font-syne font-bold text-lg border-t border-gray-800 pt-3">
+        <span>Total</span>
+        <span id="total-val" class="text-primary">R$ 0</span>
+      </div>
+      <button
+        onclick="finalizarCompra()"
+        class="w-full bg-primary text-[#0f1117] font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity text-sm"
+      >
+        Finalizar Compra
+      </button>
+      <button onclick="fecharCarrinho()" class="w-full text-gray-500 text-sm hover:text-white transition-colors">
+        Continuar comprando
+      </button>
+    </div>
+  </aside>
+
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-30 bg-[#0f1117] border-b border-gray-800 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex items-center gap-4">
+      <span class="font-syne text-2xl font-extrabold text-primary shrink-0">Tech<span class="text-white">Bazar</span></span>
+
+      <div class="flex-1 mx-4">
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Buscar produtos..."
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-primary transition-colors"
+        />
+      </div>
+
+      <div class="flex items-center gap-3 shrink-0">
+        <button id="btn-entrar" onclick="abrirAuth()" class="text-sm text-gray-300 hover:text-white transition-colors">Entrar</button>
+        <button class="bg-primary text-[#0f1117] font-semibold text-sm px-4 py-2 rounded-xl hover:opacity-90 transition-opacity">Anunciar</button>
+        <button id="cart-btn" onclick="abrirCarrinho()" class="relative text-gray-300 hover:text-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 3h2l.4 2M7 13h10l4-16H5.4M7 13l-1.35 5.39A1 1 0 007 20h10a1 1 0 00.97-1.24L17 13M7 13H5.4M9 21a1 1 0 100-2 1 1 0 000 2zm10 0a1 1 0 100-2 1 1 0 000 2z" />
+          </svg>
+          <span id="cart-count" class="absolute -top-2 -right-2 bg-primary text-[#0f1117] text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="bg-gradient-to-br from-gray-900 to-[#0f1117] border-b border-gray-800 px-6 py-16">
+    <div class="max-w-7xl mx-auto text-center">
+      <h1 class="font-syne font-extrabold text-4xl md:text-5xl mb-4">
+        Tecnologia usada,<br/><span class="text-primary">preço real.</span>
+      </h1>
+      <p class="text-gray-400 text-lg mb-10">Compre e venda eletrônicos com segurança. Sem taxas escondidas.</p>
+      <div class="flex flex-wrap justify-center gap-10">
+        <div>
+          <p class="font-syne text-3xl font-bold text-primary">3.2K</p>
+          <p class="text-sm text-gray-400">Anúncios ativos</p>
+        </div>
+        <div>
+          <p class="font-syne text-3xl font-bold text-primary">98%</p>
+          <p class="text-sm text-gray-400">Avaliações positivas</p>
+        </div>
+        <div>
+          <p class="font-syne text-3xl font-bold text-primary">R$0</p>
+          <p class="text-sm text-gray-400">Taxa de anúncio</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Filtros de categoria -->
+  <section class="px-6 py-6 border-b border-gray-800">
+    <div class="max-w-7xl mx-auto flex gap-2 overflow-x-auto pb-1" id="category-filters"></div>
+  </section>
+
+  <!-- Grid de produtos -->
+  <main class="px-6 py-10 max-w-7xl mx-auto">
+    <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+    <p id="empty-msg" class="hidden text-center text-gray-500 py-20 text-lg">Nenhum produto encontrado.</p>
+  </main>
+
+  <!-- Toast feedback -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-primary text-[#0f1117] font-semibold px-5 py-3 rounded-xl shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50 whitespace-nowrap">
+    Adicionado ao carrinho!
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-gray-800 px-6 py-8 text-center text-gray-600 text-sm">
+    &copy; 2025 TechBazar. Todos os direitos reservados.
+  </footer>
+
+  <script>
+    // ─── Auth ────────────────────────────────────────────────────────────────
+
+    let usuarioLogado = null;
+
+    function abrirAuth(aba = 'login') {
+      trocarAba(aba);
+      document.getElementById('auth-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function fecharAuth() {
+      document.getElementById('auth-modal').classList.remove('open');
+      document.body.style.overflow = '';
+      // limpa campos e erros
+      ['login-email','login-senha','reg-nome','reg-email','reg-senha'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      ['login-erro','reg-erro'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.classList.add('hidden'); el.textContent = ''; }
+      });
+    }
+
+    function trocarAba(aba) {
+      const isLogin = aba === 'login';
+      document.getElementById('form-login').classList.toggle('hidden', !isLogin);
+      document.getElementById('form-login').classList.toggle('flex', isLogin);
+      document.getElementById('form-register').classList.toggle('hidden', isLogin);
+      document.getElementById('form-register').classList.toggle('flex', !isLogin);
+
+      const tabLogin = document.getElementById('tab-login');
+      const tabReg   = document.getElementById('tab-register');
+      tabLogin.classList.toggle('bg-gray-700', isLogin);
+      tabLogin.classList.toggle('text-white', isLogin);
+      tabLogin.classList.toggle('text-gray-400', !isLogin);
+      tabReg.classList.toggle('bg-gray-700', !isLogin);
+      tabReg.classList.toggle('text-white', !isLogin);
+      tabReg.classList.toggle('text-gray-400', isLogin);
+    }
+
+    function submitLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const senha = document.getElementById('login-senha').value;
+      const erroEl = document.getElementById('login-erro');
+
+      // Busca usuário salvo localmente
+      const usuarios = JSON.parse(localStorage.getItem('tb_usuarios') || '[]');
+      const usuario = usuarios.find(u => u.email === email && u.senha === senha);
+
+      if (!usuario) {
+        erroEl.textContent = 'E-mail ou senha incorretos.';
+        erroEl.classList.remove('hidden');
+        return;
+      }
+
+      erroEl.classList.add('hidden');
+      logar(usuario);
+      fecharAuth();
+    }
+
+    function submitRegister(e) {
+      e.preventDefault();
+      const nome  = document.getElementById('reg-nome').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const senha = document.getElementById('reg-senha').value;
+      const erroEl = document.getElementById('reg-erro');
+
+      const usuarios = JSON.parse(localStorage.getItem('tb_usuarios') || '[]');
+      if (usuarios.find(u => u.email === email)) {
+        erroEl.textContent = 'E-mail já cadastrado.';
+        erroEl.classList.remove('hidden');
+        return;
+      }
+
+      const novoUsuario = { nome, email, senha };
+      usuarios.push(novoUsuario);
+      localStorage.setItem('tb_usuarios', JSON.stringify(usuarios));
+
+      erroEl.classList.add('hidden');
+      logar(novoUsuario);
+      fecharAuth();
+    }
+
+    function logar(usuario) {
+      usuarioLogado = usuario;
+      localStorage.setItem('tb_sessao', JSON.stringify(usuario));
+      atualizarNavbarAuth();
+    }
+
+    function deslogar() {
+      usuarioLogado = null;
+      localStorage.removeItem('tb_sessao');
+      atualizarNavbarAuth();
+    }
+
+    function atualizarNavbarAuth() {
+      const btn = document.getElementById('btn-entrar');
+      if (usuarioLogado) {
+        btn.textContent = usuarioLogado.nome.split(' ')[0];
+        btn.onclick = deslogar;
+        btn.title = 'Clique para sair';
+        btn.classList.add('text-primary');
+        btn.classList.remove('text-gray-300');
+      } else {
+        btn.textContent = 'Entrar';
+        btn.onclick = () => abrirAuth();
+        btn.title = '';
+        btn.classList.remove('text-primary');
+        btn.classList.add('text-gray-300');
+      }
+    }
+
+    // Restaura sessão salva
+    const sessaoSalva = localStorage.getItem('tb_sessao');
+    if (sessaoSalva) { usuarioLogado = JSON.parse(sessaoSalva); }
+
+    // Fecha modal ao clicar fora da caixa
+    document.getElementById('auth-modal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('auth-modal')) fecharAuth();
+    });
+
+    // ─── Produtos ────────────────────────────────────────────────────────────
+
+    const produtos = [
+      { id: 1, titulo: 'iPhone 13 128GB',          preco: 2499, cidade: 'São Paulo',      condicao: 'Ótimo', categoria: 'Smartphones', emoji: '📱' },
+      { id: 2, titulo: 'Notebook Dell Inspiron i5', preco: 1899, cidade: 'Rio de Janeiro', condicao: 'Bom',   categoria: 'Notebooks',   emoji: '💻' },
+      { id: 3, titulo: 'PlayStation 5 + 2 Controles', preco: 3200, cidade: 'Belo Horizonte', condicao: 'Novo', categoria: 'Games',     emoji: '🎮' },
+      { id: 4, titulo: 'Smart TV Samsung 55" 4K',   preco: 1750, cidade: 'Curitiba',       condicao: 'Bom',   categoria: 'TVs',         emoji: '📺' },
+      { id: 5, titulo: 'AirPods Pro 2ª Geração',    preco: 890,  cidade: 'Florianópolis',  condicao: 'Ótimo', categoria: 'Áudio',       emoji: '🎧' },
+      { id: 6, titulo: 'Canon EOS Rebel SL3',       preco: 2100, cidade: 'Porto Alegre',   condicao: 'Bom',   categoria: 'Câmeras',     emoji: '📷' },
+      { id: 7, titulo: 'iPad Air 5ª Geração',       preco: 3499, cidade: 'Brasília',       condicao: 'Ótimo', categoria: 'Tablets',     emoji: '📲' },
+      { id: 8, titulo: 'Samsung Galaxy S22',        preco: 1650, cidade: 'Fortaleza',      condicao: 'Bom',   categoria: 'Smartphones', emoji: '📱' },
+    ];
+
+    const categorias = ['Todos', 'Smartphones', 'Notebooks', 'Games', 'TVs', 'Áudio', 'Câmeras', 'Tablets'];
+
+    let categoriaAtiva = 'Todos';
+    let termoBusca = '';
+
+    // carrinho: [{ produto, quantidade }]
+    let carrinho = [];
+
+    // ─── Carrinho: estado ────────────────────────────────────────────────────
+
+    function totalItens() {
+      return carrinho.reduce((acc, i) => acc + i.quantidade, 0);
+    }
+
+    function totalPreco() {
+      return carrinho.reduce((acc, i) => acc + i.produto.preco * i.quantidade, 0);
+    }
+
+    function adicionarAoCarrinho(id) {
+      const produto = produtos.find(p => p.id === id);
+      const existente = carrinho.find(i => i.produto.id === id);
+
+      if (existente) {
+        existente.quantidade++;
+      } else {
+        carrinho.push({ produto, quantidade: 1 });
+      }
+
+      atualizarBadge();
+      mostrarToast();
+      if (document.getElementById('cart-drawer').classList.contains('open')) {
+        renderDrawer();
+      }
+    }
+
+    function alterarQuantidade(id, delta) {
+      const item = carrinho.find(i => i.produto.id === id);
+      if (!item) return;
+      item.quantidade += delta;
+      if (item.quantidade <= 0) {
+        carrinho = carrinho.filter(i => i.produto.id !== id);
+      }
+      atualizarBadge();
+      renderDrawer();
+    }
+
+    function removerItem(id) {
+      carrinho = carrinho.filter(i => i.produto.id !== id);
+      atualizarBadge();
+      renderDrawer();
+    }
+
+    function limparCarrinho() {
+      carrinho = [];
+      atualizarBadge();
+      renderDrawer();
+    }
+
+    // ─── Carrinho: UI ────────────────────────────────────────────────────────
+
+    function atualizarBadge() {
+      const badge = document.getElementById('cart-count');
+      const n = totalItens();
+      badge.textContent = n;
+      if (n > 0) {
+        badge.classList.remove('hidden');
+        badge.classList.add('cart-badge');
+        setTimeout(() => badge.classList.remove('cart-badge'), 250);
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function mostrarToast() {
+      const toast = document.getElementById('toast');
+      toast.style.opacity = '1';
+      clearTimeout(mostrarToast._t);
+      mostrarToast._t = setTimeout(() => { toast.style.opacity = '0'; }, 1800);
+    }
+
+    function abrirCarrinho() {
+      renderDrawer();
+      document.getElementById('cart-drawer').classList.add('open');
+      document.getElementById('cart-overlay').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function fecharCarrinho() {
+      document.getElementById('cart-drawer').classList.remove('open');
+      document.getElementById('cart-overlay').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function renderDrawer() {
+      const drawerCount  = document.getElementById('drawer-count');
+      const emptyEl      = document.getElementById('cart-empty');
+      const listEl       = document.getElementById('cart-items-list');
+      const footerEl     = document.getElementById('cart-footer');
+      const subtotalEl   = document.getElementById('subtotal-val');
+      const totalEl      = document.getElementById('total-val');
+
+      const n = totalItens();
+      drawerCount.textContent = n;
+
+      if (n === 0) {
+        emptyEl.classList.remove('hidden');
+        listEl.classList.add('hidden');
+        footerEl.classList.add('hidden');
+        return;
+      }
+
+      emptyEl.classList.add('hidden');
+      listEl.classList.remove('hidden');
+      footerEl.classList.remove('hidden');
+
+      listEl.innerHTML = carrinho.map(({ produto: p, quantidade: q }) => `
+        <div class="flex gap-4 py-4 border-b border-gray-800 last:border-0">
+          <div class="text-4xl shrink-0 w-14 h-14 bg-gray-800 rounded-xl flex items-center justify-center">${p.emoji}</div>
+          <div class="flex-1 min-w-0">
+            <p class="font-syne font-semibold text-sm leading-tight truncate">${p.titulo}</p>
+            <p class="text-xs text-gray-500 mt-0.5">${p.cidade} &middot; ${p.condicao}</p>
+            <p class="font-syne font-bold text-primary text-sm mt-1">R$ ${(p.preco * q).toLocaleString('pt-BR')}</p>
+
+            <!-- Controles de quantidade -->
+            <div class="flex items-center gap-2 mt-2">
+              <button
+                onclick="alterarQuantidade(${p.id}, -1)"
+                class="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white flex items-center justify-center text-lg leading-none transition-colors"
+              >−</button>
+              <span class="text-sm font-semibold w-4 text-center">${q}</span>
+              <button
+                onclick="alterarQuantidade(${p.id}, 1)"
+                class="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white flex items-center justify-center text-lg leading-none transition-colors"
+              >+</button>
+              <button
+                onclick="removerItem(${p.id})"
+                class="ml-auto text-gray-600 hover:text-red-400 transition-colors p-1"
+                title="Remover"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      const total = totalPreco();
+      subtotalEl.textContent = `R$ ${total.toLocaleString('pt-BR')}`;
+      totalEl.textContent    = `R$ ${total.toLocaleString('pt-BR')}`;
+    }
+
+    function finalizarCompra() {
+      alert(`Pedido realizado!\n\n${carrinho.map(i => `${i.produto.emoji} ${i.produto.titulo} x${i.quantidade}`).join('\n')}\n\nTotal: R$ ${totalPreco().toLocaleString('pt-BR')}`);
+      limparCarrinho();
+      fecharCarrinho();
+    }
+
+    // ─── Produtos ────────────────────────────────────────────────────────────
+
+    function renderCategorias() {
+      const container = document.getElementById('category-filters');
+      container.innerHTML = categorias.map(cat => `
+        <button
+          onclick="filtrarCategoria('${cat}')"
+          class="categoria-pill shrink-0 px-4 py-2 rounded-full text-sm font-medium border border-gray-700 transition-colors ${cat === categoriaAtiva ? 'pill-active border-primary' : 'text-gray-300 hover:border-primary hover:text-white'}"
+        >${cat}</button>
+      `).join('');
+    }
+
+    function produtosFiltrados() {
+      return produtos.filter(p => {
+        const matchCat  = categoriaAtiva === 'Todos' || p.categoria === categoriaAtiva;
+        const matchText = p.titulo.toLowerCase().includes(termoBusca.toLowerCase());
+        return matchCat && matchText;
+      });
+    }
+
+    function renderProdutos() {
+      const grid     = document.getElementById('products-grid');
+      const emptyMsg = document.getElementById('empty-msg');
+      const lista    = produtosFiltrados();
+
+      if (lista.length === 0) {
+        grid.innerHTML = '';
+        emptyMsg.classList.remove('hidden');
+        return;
+      }
+
+      emptyMsg.classList.add('hidden');
+      grid.innerHTML = lista.map(p => `
+        <div class="card-hover bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col gap-3">
+          <div class="text-5xl text-center py-4">${p.emoji}</div>
+          <div class="flex-1">
+            <h3 class="font-syne font-semibold text-base leading-tight">${p.titulo}</h3>
+            <p class="text-xs text-gray-500 mt-1">${p.cidade} &middot; ${p.condicao}</p>
+          </div>
+          <div class="flex items-center justify-between mt-auto">
+            <span class="font-syne font-bold text-primary text-lg">R$&nbsp;${p.preco.toLocaleString('pt-BR')}</span>
+            <button
+              onclick="adicionarAoCarrinho(${p.id})"
+              class="bg-primary text-[#0f1117] text-xs font-semibold px-3 py-2 rounded-lg hover:opacity-90 transition-opacity"
+            >+ Carrinho</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filtrarCategoria(cat) {
+      categoriaAtiva = cat;
+      renderCategorias();
+      renderProdutos();
+    }
+
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      termoBusca = e.target.value;
+      renderProdutos();
+    });
+
+    // Fechar drawer e modal com Esc
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        fecharCarrinho();
+        fecharAuth();
+      }
+    });
+
+    renderCategorias();
+    renderProdutos();
+    atualizarNavbarAuth();
+  </script>
+</body>
+</html>
